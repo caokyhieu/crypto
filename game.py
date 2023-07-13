@@ -54,13 +54,13 @@ class Blockchain:
         transaction = Transaction(sender, recipient, amount)
         self.pending_transactions.append(transaction)
 
-    def mine_pending_transactions(self, miner_address):
+    def mine_pending_transactions(self, miner_address,reward):
         block = Block(self.pending_transactions, self.get_last_block().hash)
         block.mine_block(self.difficulty)
         self.chain.append(block)
 
         # Reward the miner
-        reward_transaction = Transaction("System", miner_address, 1)
+        reward_transaction = Transaction("System", miner_address, reward)
         self.pending_transactions = [reward_transaction]
 
     def get_balance(self, address):
@@ -160,6 +160,7 @@ def game_init():
     return spaceship, asteroids
 
 # Game loop
+# Game loop
 def game_loop(blockchain):
     spaceship, asteroids = game_init()
     reward_given = False
@@ -190,20 +191,23 @@ def game_loop(blockchain):
                 pygame.quit()
                 sys.exit()
 
-            for bullet in spaceship.bullets:
+        for bullet in spaceship.bullets:
+            for asteroid in asteroids:
                 if bullet.rect.colliderect(asteroid.rect):
                     # Asteroid destroyed
                     spaceship.bullets.remove(bullet)
                     asteroids.remove(asteroid)
-                    blockchain.add_transaction("System", "Player", 100)  # Add 100 crypto to the player's balance
+                    blockchain.mine_pending_transactions("Player",100)  # Add 100 crypto to the player's balance
                     if len(asteroids) == 0:
                         # You win!
                         if not reward_given:
                             reward_given = True
-                            blockchain.add_transaction("System", "Player", blockchain.get_balance("System"))  # Transfer the reward
+                            blockchain.mine_pending_transactions("Player",100)  # Mine pending transactions to update balance
                         print("You Win!")
                         pygame.quit()
                         sys.exit()
+                    break  # Exit the loop after destroying the asteroid
+
 
         # Rendering
         screen.fill((0, 0, 0))
@@ -213,10 +217,13 @@ def game_loop(blockchain):
         
         # Display current balance
         balance_text = font.render("Balance: " + str(blockchain.get_balance("Player")), True, (255, 255, 255))
-        screen.blit(balance_text, (10, 10))
+        balance_rect = balance_text.get_rect()
+        balance_rect.topleft = (10, 10)
+        screen.blit(balance_text, balance_rect)
         
         pygame.display.flip()
         clock.tick(FPS)
+
 
 # Start the game loop
 blockchain = Blockchain()
